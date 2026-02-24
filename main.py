@@ -14,6 +14,7 @@ import os
 import random
 import string
 import html
+import re
 from io import BytesIO
 from datetime import datetime
 import time
@@ -89,6 +90,13 @@ def check_rate_limit(user_id):
         return False
     user_message_timestamps[user_id].append(now)
     return True
+
+# Helper to extract ticket ID from text (fallback)
+def extract_ticket_id(text):
+    if not text:
+        return None
+    match = re.search(r'BV-[A-Za-z0-9*#@$&]{8,}', text)
+    return match.group(0) if match else None
 
 # ================= /start =================
 async def start(update: Update, context):
@@ -460,14 +468,24 @@ async def close_ticket(update: Update, context):
 
     ticket_id = None
 
+    # First try to get from args
     if context.args:
         ticket_id = context.args[0]
+    # Then try from reply message
     elif update.message.reply_to_message:
-        ticket_id = group_message_map.get(update.message.reply_to_message.message_id)
+        reply_msg = update.message.reply_to_message
+        # Try from group_message_map
+        ticket_id = group_message_map.get(reply_msg.message_id)
+        # If not found, try to extract from reply message text (if any)
+        if not ticket_id and reply_msg.text:
+            ticket_id = extract_ticket_id(reply_msg.text)
+        # If still not found, try caption
+        if not ticket_id and reply_msg.caption:
+            ticket_id = extract_ticket_id(reply_msg.caption)
 
     if not ticket_id or ticket_id not in ticket_status:
         await update.message.reply_text(
-            "❌ Ticket not found.\nUse /close BV-XXXXX or reply with /close",
+            "❌ Ticket not found.\nUse /close BV-XXXXX or reply with /close to a ticket-related message.",
             parse_mode="HTML"
         )
         return
