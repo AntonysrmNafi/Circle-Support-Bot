@@ -616,7 +616,8 @@ async def send_direct(update: Update, context):
             await update.message.reply_text("⚠️ Ticket is closed.", parse_mode="HTML")
             return
         user_id = ticket_user[ticket_id]
-        message = f"🎫 Ticket ID: {code(ticket_id)}\n\n{message}"
+        # Include ticket ID only for ticket-specific messages
+        final_message = f"🎫 Ticket ID: {code(ticket_id)}\n\n{message}"
 
     elif target.startswith("@"):
         username = target[1:]
@@ -625,19 +626,17 @@ async def send_direct(update: Update, context):
         for uid, uname in user_latest_username.items():
             if uname.lower() == username_lower:
                 user_id = uid
-                # Find any ticket for this user to get ticket ID
-                for tid in user_tickets.get(user_id, []):
-                    ticket_id = tid
-                    break
                 break
         if not user_id:
             for tid, uname in ticket_username.items():
                 if uname.lower() == username_lower:
                     user_id = ticket_user[tid]
-                    ticket_id = tid
                     break
-        if ticket_id:
-            message = f"🎫 Ticket ID: {code(ticket_id)}\n\n{message}"
+        if not user_id:
+            await update.message.reply_text("❌ User not found.", parse_mode="HTML")
+            return
+        # Do not include ticket ID for username sends
+        final_message = f"📩 BlockVeil Support:\n\n{message}"
 
     else:
         try:
@@ -646,6 +645,8 @@ async def send_direct(update: Update, context):
             # Fix bug 12: show error for invalid user ID
             await update.message.reply_text("❌ Invalid user ID or target.", parse_mode="HTML")
             return
+        # Do not include ticket ID for user ID sends
+        final_message = f"📩 BlockVeil Support:\n\n{message}"
 
     if not user_id:
         await update.message.reply_text("❌ User not found.", parse_mode="HTML")
@@ -654,7 +655,7 @@ async def send_direct(update: Update, context):
     try:
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"📩 BlockVeil Support:\n\n{message}",
+            text=final_message,
             parse_mode="HTML"
         )
         await update.message.reply_text("✅ Message sent successfully.", parse_mode="HTML")
