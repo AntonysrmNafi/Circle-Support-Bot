@@ -520,7 +520,7 @@ async def request_close(update: Update, context):
 
     if ticket_user.get(ticket_id) != user.id:
         await update.message.reply_text(
-            "❌ This ticket does not belong to you.",
+            "❌ This ticket does not belong to you. Please use your correct Ticket ID.",
             parse_mode="HTML"
         )
         return
